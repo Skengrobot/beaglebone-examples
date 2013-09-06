@@ -1,5 +1,5 @@
 /*********************************************************************
-          hall-timer.c written by Rudi Plesch for UBC Eracing
+          hall-timer.c (c) 2013 Rudi Plesch
  
 Sysfs implementation of a hall effect timer that uses the poll()
 funciton to wait on a rising edge interrupt on the GPIO pin with the
