@@ -1,0 +1,8 @@
+This is an example of a risin edge interrupt on a implemented in user space
+on a BeagleBone. The poll() function runs in a separate thread so you can
+do whatever you want in main. I hope it's useful.
+
+The source can be cross-compiled with the included Makefile usign the Angstrom
+toolchain or built directly on the Beaglebone.
+
+Code is disributed under GPLv2.
