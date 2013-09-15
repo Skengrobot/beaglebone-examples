@@ -8,11 +8,8 @@ TARGET = sysfs-hall-timer
 
 all: $(TARGET)
 
-$(TARGET): main.cpp hallTimer.o 
-	$(CC) $(CFLAGS) -o $@ main.cpp
-
-hallTimer.o: hallTimer.cpp hallTimer.h
-	$(CC) $(CFLAGS) -c hallTimer.cpp
+$(TARGET): hall-timer.c hallThreadData.h
+	$(CC) $(CFLAGS) -o $@ hall-timer.c
 
 clean:
 	rm *.o $(TARGET)

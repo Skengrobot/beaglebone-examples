@@ -38,47 +38,63 @@ MA  02110-1301, USA.
 #include <inttypes.h>
 #include <math.h>
 
+#include "hallThreadData.h"
+
 #define GPIOdirectory "/sys/class/gpio"
-#define TIMEOUT 1000
+#define TIMEOUT_0_SPEED 250
+
+#define FRONT_CIRCUMFERENCE 1.626 // meters
+#define REAR_CIRCUMFERENCE 1.785 // meters
+
+#define MPS_TO_KPH 3.6
 
 // File pointers for sysfs gpio
 // They are static so their scope is the entire file
-static int fileValue;
 static FILE* fileExport;
 static FILE* fileEdge;
 
-// Need a pollfd struct for the poll() function
-static struct pollfd gpioDescriptor;
-
 // pthread declaration
-pthread_t timerThread;
-int threadReturn;
-int threadData;
+pthread_t frontLeftThread;
+
+// Instantiations of hallThreadData for each sensor and initialize
+struct hallThreadData* frontLeftData;
 
 // Function to execute in the thread
 void* timerFunction (void* data);
 
 // Other functions
 int gpioSetup (char pin[]);
-int cleanUp (void);
+int cleanUp (struct hallThreadData* dataStruct);
 
 int main (void) {
 
-    if (!gpioSetup("22"))
-        return -1;
+    // These are the steps to take for each sensor
+    frontLeftData = malloc(sizeof(struct hallThreadData)); // Initilize the pointer
+    frontLeftData->pinFileDescriptor = gpioSetup("22"); // gpioSetup returns a file descriptor
+    frontLeftData->isFront = 1;
+    // Create thread, pass in function handle and data struct
+    pthread_create (&frontLeftThread, NULL, timerFunction, (void*)frontLeftData);
 
-    // Create thread, pass in function handle and NULL for data
-    threadReturn = pthread_create (&timerThread, NULL, timerFunction, &threadData);
-    // Run thread and wait for it to terminate
-    pthread_join (timerThread, NULL);
+    while (1) {
+        printf("Front left speed is %f km/h\n", frontLeftData->speed);
+        usleep(250000);
+    }
 
-    cleanUp();
+    // Send signal to terminate thread
+    pthread_cancel(frontLeftThread);
+    // Wait for it to terminate
+    pthread_join (frontLeftThread, NULL);
+
+    cleanUp(frontLeftData);
     return 0;
 }
 
 void* timerFunction(void *data) {
     printf("Poll thread is running...\n");
 
+    // casting data pointer
+    struct hallThreadData* threadData;
+    threadData = (struct hallThreadData*)data;
     // Return values for poll and read, though we'll ignore read
     int pollReturn, readReturn;
     // Buffer to read interrput to, this is only needed to clear the data
@@ -86,23 +102,25 @@ void* timerFunction(void *data) {
 
     // Time struct for reading system clock values for ms
     struct timeval systemTime;
+    struct pollfd gpioDescriptor;
 
     unsigned long int lastTime, currentTime;
 
+    // Making the thread cancellable, this will execute during poll() block
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
     // While loop to indefinitely look for interrupts
     while (1) {
-        // I'm not quite sure what this does
+        // Initializes gpioDescriptor to 0
         memset ((void*)&gpioDescriptor, 0, sizeof(gpioDescriptor));
 
         // The fd member holds the file pointer
-        gpioDescriptor.fd = fileValue;
+        gpioDescriptor.fd = threadData->pinFileDescriptor;
         // The events member holds the event priority, set to urgent
         gpioDescriptor.events = POLLPRI;
-        // resets the revent return value
-        // gpioDescriptor.revents = 0;
 
         // Pass in pointer of file to poll, number of files to poll and 1s timeout
-        pollReturn = poll (&gpioDescriptor, 1, 1000);
+        pollReturn = poll (&gpioDescriptor, 1, TIMEOUT_0_SPEED);
 
         // Check the return value of poll to see if the file is opened properly
         if (pollReturn < 0) {
@@ -112,7 +130,7 @@ void* timerFunction(void *data) {
 
         // This is the timeout condition
         else if (pollReturn == 0) {
-            printf (".");
+            threadData->speed = 0;
         }
 
         // Masks the event return value with the POLLPRI constant
@@ -121,15 +139,18 @@ void* timerFunction(void *data) {
             // Need to call read to clear the interrupt data, even though it's not interesting
             readReturn = read (gpioDescriptor.fd, buffer, 64);
 
-            // Calculate elapced time
+            // Calculate elapsed time
             lastTime = currentTime;
             gettimeofday(&systemTime, NULL);
             currentTime = (systemTime.tv_sec) * 1000 + (systemTime.tv_usec) / 1000;
 
             unsigned long int elapsedMilliSeconds = currentTime - lastTime;
-
-            printf ("GPIO interrupt occurred\n");
-            printf ("Time Elapsed: %lu ms\n", elapsedMilliSeconds);
+            if (threadData->isFront)
+                threadData->speed = 1000 * MPS_TO_KPH * FRONT_CIRCUMFERENCE / elapsedMilliSeconds;
+            else
+                threadData->speed = 1000 * MPS_TO_KPH * REAR_CIRCUMFERENCE / elapsedMilliSeconds;
+            //printf ("GPIO interrupt occurred\n");
+            //printf ("Time Elapsed: %lu ms\n", elapsedMilliSeconds);
         }
 
         fflush (stdout);
@@ -176,13 +197,14 @@ int gpioSetup (char pin[2]) {
     fclose (fileEdge);
 
     // Use open() instead of fopen() to return a file descriptor instead of pointer
-    fileValue = open (pinValue, O_RDONLY | O_NONBLOCK);
+    int fileDescriptor = open (pinValue, O_RDONLY | O_NONBLOCK);
 
-    return 1;
+    return fileDescriptor;
 }
 
-int cleanUp (void) {
+int cleanUp (struct hallThreadData* dataStruct) {
     // Basic cleanup function, this will most likely grow with requirements
-    close (fileValue);
+    close (dataStruct->speed);
+    free (dataStruct);
     return 1;
 }
