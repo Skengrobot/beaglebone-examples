@@ -2,6 +2,9 @@ This is an example of a rising edge interrupt on a implemented in user space
 on a BeagleBone. The poll() function runs in a separate thread so you can
 do whatever you want in main. I hope it's useful.
 
+I used this to measure the speed of a car, so the function calculates a speed,
+but you can use this structure for whatever you like.
+
 The source can be cross-compiled with the included Makefile usign the Angstrom
 toolchain or built directly on the Beaglebone.
 
