@@ -1,8 +1,11 @@
-This is an example of a risin edge interrupt on a implemented in user space
+This is an example of a rising edge interrupt on a implemented in user space
 on a BeagleBone. The poll() function runs in a separate thread so you can
 do whatever you want in main. I hope it's useful.
 
 The source can be cross-compiled with the included Makefile usign the Angstrom
 toolchain or built directly on the Beaglebone.
+
+A this is largely based on the code found here: https://developer.ridgerun.com/wiki/index.php/How_to_use_GPIO_signals
+but I hope that I've added some useful comments.
 
 Code is disributed under GPLv2.
