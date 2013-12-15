@@ -44,3 +44,20 @@ When you're done run
 	systemctl enable car-main.service && systemctl start car-main.service
 
 and it'll work next time you boot.
+
+Configuring CANBus
+==================
+To enable CANBus you need to load all the drivers
+
+	modprobe can can-dev can-raw
+
+You can check the kenel messages to see if that worked. Now you need to configure the network
+interface. Most usual CAN configurations can be set by bitrate, but in my experience it's
+better to set this up with CAN-specific parameters. The tq stands for "time quanta" and is in
+nanoseconds, parameters are units of tq. Check the kernel documentation and CANBus wiki for
+more details. Run:
+
+	ip link set can1 type can tq 125 prop-seg 6 phase-seg1 7 phase-seg2 2 sjw 1 reset-ms 100
+
+The reset-ms is useful because if the bus is swamped with errors and nothing else can transmit,
+it'll clear everything after that time elapses.
