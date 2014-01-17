@@ -57,9 +57,9 @@ better to set this up with CAN-specific parameters. The tq stands for "time quan
 nanoseconds, parameters are units of tq. Check the kernel documentation and CANBus wiki for
 more details. Run:
 
-	ip link set can0 type can tq 125 prop-seg 6 phase-seg1 7 phase-seg2 2 sjw 1 reset-ms 100
+	ip link set can0 type can tq 125 prop-seg 6 phase-seg1 7 phase-seg2 2 sjw 1 restart-ms 100
 
-The reset-ms is useful because if the bus is swamped with errors and nothing else can transmit,
+The restart-ms is useful because if the bus is swamped with errors and nothing else can transmit,
 it'll clear everything after that time elapses. You then need to start the interface:
 
 	ifconfig can0 up
